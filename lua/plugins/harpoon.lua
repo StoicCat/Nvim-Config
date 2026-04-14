@@ -4,6 +4,50 @@ local actions = require("telescope.actions")
 local action_state = require("telescope.actions.state")
 local layout = require("config.layout")
 
+local function restore_harpoon_cursor(item)
+  local context = item and item.context or {}
+  local row = context.row or 1
+  local col = context.col or 0
+  local line_count = vim.api.nvim_buf_line_count(0)
+
+  if line_count < 1 then
+    return
+  end
+
+  row = math.max(1, math.min(row, line_count))
+
+  local line = vim.api.nvim_buf_get_lines(0, row - 1, row, false)[1] or ""
+  col = math.max(0, math.min(col, #line))
+
+  pcall(vim.api.nvim_win_set_cursor, 0, { row, col })
+end
+
+local function open_harpoon_item(item)
+  if not item or not item.value then
+    return
+  end
+
+  local absolute_path = vim.fn.fnamemodify(item.value, ":p")
+  local current_buf = vim.api.nvim_get_current_buf()
+  local current_name = vim.api.nvim_buf_get_name(current_buf)
+
+  if current_name == absolute_path then
+    restore_harpoon_cursor(item)
+    return
+  end
+
+  layout.focus_main_window()
+
+  local existing_buf = vim.fn.bufnr(absolute_path)
+  if existing_buf ~= -1 then
+    vim.api.nvim_set_current_buf(existing_buf)
+  else
+    vim.cmd.edit(vim.fn.fnameescape(absolute_path))
+  end
+
+  restore_harpoon_cursor(item)
+end
+
 local function toggle_telescope(harpoon_files)
   local file_paths = {}
   for _, item in ipairs(harpoon_files.items) do
@@ -78,7 +122,7 @@ local function open_harpoon_picker(harpoon_files)
 
         if selection and selection.value and selection.value.index then
           layout.focus_main_window()
-          harpoon_files:select(selection.value.index)
+          open_harpoon_item(harpoon_files.items[selection.value.index])
         end
       end)
 
