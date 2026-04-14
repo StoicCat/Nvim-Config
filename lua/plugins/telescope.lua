@@ -17,5 +17,8 @@ return {
     vim.keymap.set("n", "<leader>o", function()
       builtin.lsp_document_symbols()
     end, { desc = "File Symbols" })
+    vim.keymap.set("n", "<leader>fr", function()
+      builtin.lsp_references()
+    end, { desc = "Find References" })
   end
 }

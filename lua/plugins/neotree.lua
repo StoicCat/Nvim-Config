@@ -39,7 +39,15 @@ return {
       filesystem = {
         bind_to_cwd = false,
         filtered_items = {
-          visible = true,
+          visible = false,
+          hide_dotfiles = true,
+          hide_gitignored = true,
+          hide_by_name = {
+            "node_modules",
+            ".git",
+            "target",
+            "build"
+          },
         },
         group_empty_dirs = true,
         follow_current_file = {
@@ -48,7 +56,6 @@ return {
         },
         hijack_netrw_behavior = "disabled",
         use_libuv_file_watcher = true,
-
         commands = {
           open = function(state)
             local node = state.tree:get_node()

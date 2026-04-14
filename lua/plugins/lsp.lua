@@ -11,10 +11,8 @@ return {
     dependencies = { "williamboman/mason.nvim" },
     config = function()
       require("mason-lspconfig").setup({
-        ensure_installed = { "lua_ls", "jdtls" },
-        automatic_enable = {
-          exclude = { "jdtls" },
-        },
+        ensure_installed = { "lua_ls", "jdtls", "tsserver", "angularls", "html", "cssls", "eslint" },
+        automatic_enable = false,
       })
     end,
   },
@@ -27,11 +25,19 @@ return {
       "hrsh7th/cmp-path",
       "L3MON4D3/LuaSnip",
       "saadparwaiz1/cmp_luasnip",
+      "rafamadriz/friendly-snippets",
       "onsails/lspkind.nvim",
     },
     config = function()
       local cmp = require("cmp")
       local lspkind = require("lspkind")
+      local luasnip = require("luasnip")
+
+      require("luasnip.loaders.from_vscode").lazy_load()
+
+      -- Reuse HTML/CSS snippets in Angular templates and component styles.
+      luasnip.filetype_extend("htmlangular", { "html" })
+      luasnip.filetype_extend("scss", { "css" })
 
       cmp.setup({
         formatting = {
@@ -43,7 +49,7 @@ return {
         },
         snippet = {
           expand = function(args)
-            require("luasnip").lsp_expand(args.body)
+            luasnip.lsp_expand(args.body)
           end,
         },
         mapping = cmp.mapping.preset.insert({
@@ -55,8 +61,24 @@ return {
               fallback()
             end
           end),
-          ["<Tab>"] = cmp.mapping.select_next_item(),
-          ["<S-Tab>"] = cmp.mapping.select_prev_item(),
+          ["<Tab>"] = cmp.mapping(function(fallback)
+            if cmp.visible() then
+              cmp.select_next_item()
+            elseif luasnip.expand_or_jumpable() then
+              luasnip.expand_or_jump()
+            else
+              fallback()
+            end
+          end, { "i", "s" }),
+          ["<S-Tab>"] = cmp.mapping(function(fallback)
+            if cmp.visible() then
+              cmp.select_prev_item()
+            elseif luasnip.jumpable(-1) then
+              luasnip.jump(-1)
+            else
+              fallback()
+            end
+          end, { "i", "s" }),
         }),
         sources = {
           { name = "nvim_lsp" },
@@ -74,12 +96,15 @@ return {
     end,
   },
   -- LSP Config
+  -- LSP
   {
     "neovim/nvim-lspconfig",
     config = function()
       local capabilities = require("cmp_nvim_lsp").default_capabilities()
 
-      -- Diagnostic config
+      ------------------------------------------------------------------
+      -- Diagnostics
+      ------------------------------------------------------------------
       vim.diagnostic.config({
         virtual_text = true,
         signs = true,
@@ -87,28 +112,76 @@ return {
         update_in_insert = false,
         severity_sort = true,
       })
-      -- LSP Setup
+
+      ------------------------------------------------------------------
+      -- LUA
+      ------------------------------------------------------------------
       vim.lsp.config("lua_ls", {
         capabilities = capabilities,
         settings = {
           Lua = {
-            runtime = {
-              version = "LuaJIT",
-            },
-            diagnostics = {
-              globals = { "vim", "require" },
-            },
+            runtime = { version = "LuaJIT" },
+            diagnostics = { globals = { "vim", "require" } },
             workspace = {
-              library = vim.api.nvim_get_runtime_file("", true),
+              library = {
+                vim.env.VIMRUNTIME,
+              },
               checkThirdParty = false,
             },
-            telemetry = {
-              enable = false,
-            },
+            telemetry = { enable = false },
           },
         },
       })
-      vim.lsp.enable("lua_ls")
+
+      ------------------------------------------------------------------
+      -- TYPESCRIPT (NEW: ts_ls)
+      ------------------------------------------------------------------
+      vim.lsp.config("ts_ls", {
+        capabilities = capabilities,
+        on_attach = function(client)
+          client.server_capabilities.documentFormattingProvider = false
+        end,
+      })
+
+      ------------------------------------------------------------------
+      -- ANGULAR (FIXED)
+      ------------------------------------------------------------------
+      vim.lsp.config("angularls", {
+        capabilities = capabilities,
+        root_dir = function(bufnr, on_dir)
+          local fname = vim.api.nvim_buf_get_name(bufnr)
+          local root = vim.fs.root(fname, "angular.json")
+          if root then
+            on_dir(root)
+          end
+        end,
+      })
+
+      ------------------------------------------------------------------
+      -- HTML / CSS / ESLINT
+      ------------------------------------------------------------------
+      vim.lsp.config("html", {
+        capabilities = capabilities,
+        filetypes = { "html", "templ" },
+      })
+
+      vim.lsp.config("cssls", {
+        capabilities = capabilities,
+      })
+
+      vim.lsp.config("eslint", {
+        capabilities = capabilities,
+      })
+
+      ------------------------------------------------------------------
+      -- ENABLE (since you're using config API)
+      ------------------------------------------------------------------
+      vim.lsp.enable("lua_ls", { force = true })
+      vim.lsp.enable("ts_ls")
+      vim.lsp.enable("angularls")
+      vim.lsp.enable("html")
+      vim.lsp.enable("cssls")
+      vim.lsp.enable("eslint")
     end,
   },
 }

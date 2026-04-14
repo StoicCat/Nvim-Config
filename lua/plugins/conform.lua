@@ -64,12 +64,5 @@ return {
         apply = true,
       })
     end, { desc = "Organize Imports" })
-
-    -- 💾 auto format on save
-    vim.api.nvim_create_autocmd("BufWritePre", {
-      callback = function()
-        format_and_fix()
-      end,
-    })
   end,
 }

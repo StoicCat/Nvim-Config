@@ -7,6 +7,20 @@ local function go_to_declaration_or_definition()
   local current_buf = vim.api.nvim_get_current_buf()
   local current_win = vim.api.nvim_get_current_win()
   local current_pos = vim.api.nvim_win_get_cursor(current_win)
+  local clients = vim.lsp.get_clients({ bufnr = current_buf })
+  local supports_declaration = false
+
+  for _, client in ipairs(clients) do
+    if client:supports_method("textDocument/declaration") then
+      supports_declaration = true
+      break
+    end
+  end
+
+  if not supports_declaration then
+    vim.lsp.buf.definition()
+    return
+  end
 
   vim.lsp.buf_request_all(current_buf, "textDocument/declaration", params, function(results)
     local locations = {}
