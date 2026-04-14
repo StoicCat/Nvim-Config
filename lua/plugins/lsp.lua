@@ -32,6 +32,14 @@ return {
       local cmp = require("cmp")
       local lspkind = require("lspkind")
       local luasnip = require("luasnip")
+      local termcodes = vim.api.nvim_replace_termcodes
+
+      local function has_closing_char_ahead()
+        local line = vim.api.nvim_get_current_line()
+        local col = vim.fn.col(".")
+        local next_char = line:sub(col, col)
+        return next_char:match("[%)%]%}%>\"'%`]")
+      end
 
       require("luasnip.loaders.from_vscode").lazy_load()
 
@@ -66,6 +74,8 @@ return {
               cmp.select_next_item()
             elseif luasnip.expand_or_jumpable() then
               luasnip.expand_or_jump()
+            elseif has_closing_char_ahead() and vim.fn.maparg("<Plug>(TaboutMulti)", "i") ~= "" then
+              vim.api.nvim_feedkeys(termcodes("<Plug>(TaboutMulti)", true, true, true), "", true)
             else
               fallback()
             end
@@ -75,6 +85,8 @@ return {
               cmp.select_prev_item()
             elseif luasnip.jumpable(-1) then
               luasnip.jump(-1)
+            elseif has_closing_char_ahead() and vim.fn.maparg("<Plug>(TaboutBackMulti)", "i") ~= "" then
+              vim.api.nvim_feedkeys(termcodes("<Plug>(TaboutBackMulti)", true, true, true), "", true)
             else
               fallback()
             end
