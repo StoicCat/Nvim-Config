@@ -10,7 +10,7 @@ return {
           light = "latte",
           dark = "mocha",
         },
-        transparent_background = false,
+        transparent_background = true,
         float = {
           transparent = true,
           solid = false,
@@ -26,8 +26,12 @@ return {
     dependencies = {
       "nvim-tree/nvim-web-devicons",
     },
-    opts = {
-      theme = "catppuccin",
-    },
+    config = function()
+      require("lualine").setup({
+        options = {
+          theme = "dracula"
+        },
+      })
+    end,
   },
 }

@@ -11,7 +11,7 @@ return {
     dependencies = { "williamboman/mason.nvim" },
     config = function()
       require("mason-lspconfig").setup({
-        ensure_installed = { "lua_ls", "jdtls", "tsserver", "angularls", "html", "cssls", "eslint" },
+        ensure_installed = { "lua_ls", "jdtls", "angularls", "html", "cssls", "eslint" },
         automatic_enable = false,
       })
     end,
