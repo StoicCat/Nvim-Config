@@ -1,5 +1,7 @@
 local conf = require('telescope.config').values
 local themes = require('telescope.themes')
+local actions = require("telescope.actions")
+local action_state = require("telescope.actions.state")
 
 local function toggle_telescope(harpoon_files)
   local file_paths = {}
@@ -21,6 +23,52 @@ local function toggle_telescope(harpoon_files)
   }):find()
 end
 
+local function open_harpoon_picker(harpoon_files)
+  local entries = {}
+  for index, item in ipairs(harpoon_files.items) do
+    if item and item.value then
+      table.insert(entries, {
+        index = index,
+        value = item.value,
+        ordinal = item.value,
+        display = string.format("%d %s", index, item.value),
+      })
+    end
+  end
+
+  local opts = themes.get_dropdown({
+    prompt_title = "Harpoon",
+    previewer = false,
+  })
+
+  require("telescope.pickers").new(opts, {
+    finder = require("telescope.finders").new_table({
+      results = entries,
+      entry_maker = function(entry)
+        return {
+          value = entry,
+          ordinal = entry.ordinal,
+          display = entry.display,
+          path = entry.value,
+        }
+      end,
+    }),
+    sorter = conf.generic_sorter(opts),
+    attach_mappings = function(prompt_bufnr)
+      actions.select_default:replace(function()
+        local selection = action_state.get_selected_entry()
+        actions.close(prompt_bufnr)
+
+        if selection and selection.value and selection.value.index then
+          harpoon_files:select(selection.value.index)
+        end
+      end)
+
+      return true
+    end,
+  }):find()
+end
+
 return {
   "ThePrimeagen/harpoon",
   branch = "harpoon2",
@@ -33,10 +81,12 @@ return {
       return harpoon:list()
     end
 
+    harpoon:setup()
+
     vim.keymap.set("n", "<leader>ha", function() list():add() end, { desc = "Harpoon add file" })
     vim.keymap.set("n", "<leader>hd", function() list():remove() end, { desc = "Harpoon remove file" })
     vim.keymap.set("n", "<leader>hc", function() list():clear() end, { desc = "Harpoon clear all" })
-    vim.keymap.set("n", "<leader>hh", function() harpoon.ui:toggle_quick_menu(list()) end, { desc = "Harpoon menu" })
+    vim.keymap.set("n", "<leader>hh", function() open_harpoon_picker(list()) end, { desc = "Harpoon menu" })
     vim.keymap.set("n", "<leader>fl", function() toggle_telescope(harpoon:list()) end,
       { desc = "Open harpoon window" })
     vim.keymap.set("n", "<leader>hp", function() list():prev() end, { desc = "Harpoon previous" })
