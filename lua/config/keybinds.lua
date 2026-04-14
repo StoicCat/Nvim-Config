@@ -230,7 +230,7 @@ vim.api.nvim_create_autocmd("BufEnter", {
       end
 
       -- ignore special UI buffers completely
-      if bt ~= "" or ft == "neo-tree" or ft == "harpoon" then
+      if bt ~= "" or ft == "neo-tree" or ft == "harpoon" or ft == "trouble" then
         return
       end
 

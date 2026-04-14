@@ -18,7 +18,6 @@ local function restore_harpoon_cursor(item)
 
   local line = vim.api.nvim_buf_get_lines(0, row - 1, row, false)[1] or ""
   col = math.max(0, math.min(col, #line))
-
   pcall(vim.api.nvim_win_set_cursor, 0, { row, col })
 end
 

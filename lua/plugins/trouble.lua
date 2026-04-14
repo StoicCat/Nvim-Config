@@ -4,7 +4,14 @@ return {
     "nvim-tree/nvim-web-devicons",
   },
   config = function()
-    require("trouble").setup({})
+    require("trouble").setup({
+      preview = {
+        type = "split",
+        relative = "win",
+        position = "right",
+        size = 0.4,
+      },
+    })
 
     vim.keymap.set("n", "<leader>xx", "<cmd>Trouble diagnostics toggle<CR>", { desc = "Diagnostics" })
     vim.keymap.set("n", "<leader>xw", "<cmd>Trouble diagnostics toggle filter.buf=0<CR>", { desc = "Buffer diagnostics" })
