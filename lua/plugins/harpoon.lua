@@ -142,6 +142,9 @@ return {
     local list = function()
       return harpoon:list()
     end
+    local select_file = function(index)
+      open_harpoon_item(list().items[index])
+    end
 
     harpoon:setup()
 
@@ -153,10 +156,10 @@ return {
       { desc = "Open harpoon window" })
     vim.keymap.set("n", "<leader>hp", function() list():prev() end, { desc = "Harpoon previous" })
     vim.keymap.set("n", "<leader>hn", function() list():next() end, { desc = "Harpoon next" })
-    vim.keymap.set("n", "<leader>h1", function() list():select(1) end, { desc = "Harpoon file 1" })
-    vim.keymap.set("n", "<leader>h2", function() list():select(2) end, { desc = "Harpoon file 2" })
-    vim.keymap.set("n", "<leader>h3", function() list():select(3) end, { desc = "Harpoon file 3" })
-    vim.keymap.set("n", "<leader>h4", function() list():select(4) end, { desc = "Harpoon file 4" })
+    vim.keymap.set("n", "<leader>h1", function() select_file(1) end, { desc = "Harpoon file 1" })
+    vim.keymap.set("n", "<leader>h2", function() select_file(2) end, { desc = "Harpoon file 2" })
+    vim.keymap.set("n", "<leader>h3", function() select_file(3) end, { desc = "Harpoon file 3" })
+    vim.keymap.set("n", "<leader>h4", function() select_file(4) end, { desc = "Harpoon file 4" })
     vim.keymap.set("n", "<C-p>", function() list():prev() end)
     vim.keymap.set("n", "<C-n>", function() list():next() end)
   end
