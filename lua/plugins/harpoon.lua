@@ -2,6 +2,7 @@ local conf = require('telescope.config').values
 local themes = require('telescope.themes')
 local actions = require("telescope.actions")
 local action_state = require("telescope.actions.state")
+local layout = require("config.layout")
 
 local function toggle_telescope(harpoon_files)
   local file_paths = {}
@@ -20,6 +21,22 @@ local function toggle_telescope(harpoon_files)
     }),
     previewer = conf.file_previewer(opts),
     sorter = conf.generic_sorter(opts),
+    attach_mappings = function(prompt_bufnr)
+      actions.select_default:replace(function()
+        local selection = action_state.get_selected_entry()
+        actions.close(prompt_bufnr)
+
+        if selection then
+          local path = selection.path or selection.filename or selection.value
+          if path and path ~= "" then
+            layout.focus_main_window()
+            vim.cmd.edit(vim.fn.fnameescape(path))
+          end
+        end
+      end)
+
+      return true
+    end,
   }):find()
 end
 
@@ -60,6 +77,7 @@ local function open_harpoon_picker(harpoon_files)
         actions.close(prompt_bufnr)
 
         if selection and selection.value and selection.value.index then
+          layout.focus_main_window()
           harpoon_files:select(selection.value.index)
         end
       end)
