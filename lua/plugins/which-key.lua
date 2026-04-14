@@ -11,8 +11,10 @@ return {
       { "<leader>c", group = "Code" },
       { "<leader>e", group = "Explorer" },
       { "<leader>f", group = "Files" },
+      { "<leader>g", group = "Git" },
       { "<leader>h", group = "Harpoon" },
       { "<leader>r", group = "Run" },
+      { "<leader>x", group = "Trouble" },
       { "<leader>y", group = "Yank" },
     })
   end,
