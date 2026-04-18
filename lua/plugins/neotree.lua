@@ -49,7 +49,7 @@ return {
             "build"
           },
         },
-        group_empty_dirs = true,
+        group_empty_dirs = false,
         follow_current_file = {
           enabled = true,
           leave_dirs_open = true,
