@@ -286,3 +286,7 @@ vim.keymap.set("n", "<leader>rt", _SPRING_TOGGLE)
 -- Copy to clipboard
 vim.keymap.set("n", "<leader>y", '"+y')
 vim.keymap.set("v", "<leader>y", '"+y')
+
+
+-- Escape to JJ
+vim.keymap.set("i", "jj", "<Esc>")
