@@ -8,10 +8,6 @@ local function get_buf_meta(buf)
   }
 end
 
-local function is_terminal_ft(ft, bt)
-  return bt == "terminal" or ft == "toggleterm" or ft == "spring-terminal"
-end
-
 local function is_real_editor(meta)
   return meta.bt == "" and meta.ft ~= "neo-tree" and meta.ft ~= "alpha"
 end
@@ -30,7 +26,6 @@ end
 function M.get_windows()
   local state = {
     neotree = nil,
-    terminal = nil,
     alpha = nil,
     editor = nil,
     fallback = nil,
@@ -48,8 +43,6 @@ function M.get_windows()
 
       if meta.ft == "neo-tree" then
         state.neotree = win
-      elseif is_terminal_ft(meta.ft, meta.bt) then
-        state.terminal = win
       else
         table.insert(editor_candidates, win)
 
@@ -148,46 +141,6 @@ function M.show_dashboard()
   M.enforce_neotree_width()
 
   return vim.api.nvim_get_current_win()
-end
-
-function M.place_buffer_below_main(bufnr, height)
-  local state = M.get_windows()
-  local anchor = state.editor or state.alpha or state.fallback
-
-  if not anchor or not vim.api.nvim_win_is_valid(anchor) then
-    return nil
-  end
-
-  vim.api.nvim_set_current_win(anchor)
-  vim.cmd("belowright split")
-
-  local term_win = vim.api.nvim_get_current_win()
-  vim.api.nvim_win_set_buf(term_win, bufnr)
-  vim.cmd(("resize %d"):format(height or 15))
-
-  M.enforce_neotree_width()
-  M.cleanup_duplicate_alpha_windows()
-
-  return term_win
-end
-
-function M.reposition_terminal(bufnr, height)
-  if not bufnr or not vim.api.nvim_buf_is_valid(bufnr) then
-    return nil
-  end
-
-  local state = M.get_windows()
-
-  if not (state.neotree and vim.api.nvim_win_is_valid(state.neotree)) then
-    M.cleanup_duplicate_alpha_windows()
-    return state.terminal
-  end
-
-  if state.terminal and vim.api.nvim_win_is_valid(state.terminal) then
-    pcall(vim.api.nvim_win_close, state.terminal, true)
-  end
-
-  return M.place_buffer_below_main(bufnr, height)
 end
 
 function M.fix_layout()

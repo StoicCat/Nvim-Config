@@ -123,31 +123,6 @@ vim.keymap.set("n", "<leader>bd", function()
   end
 end, { desc = "Close buffer smart" })
 
-local function focus_real_window()
-  for _, win in ipairs(vim.api.nvim_list_wins()) do
-    local buf = vim.api.nvim_win_get_buf(win)
-    local ft = vim.bo[buf].filetype
-
-    if ft ~= "neo-tree" and ft ~= "spring-terminal" then
-      vim.api.nvim_set_current_win(win)
-      return
-    end
-  end
-end
-
-local function focus_main_window()
-  for _, win in ipairs(vim.api.nvim_list_wins()) do
-    local buf = vim.api.nvim_win_get_buf(win)
-    local ft = vim.bo[buf].filetype
-
-    if ft ~= "neo-tree" and ft ~= "spring-terminal" then
-      vim.api.nvim_set_current_win(win)
-      return true
-    end
-  end
-  return false
-end
-
 vim.keymap.set("n", "<leader>bo", "<cmd>BufferLineCloseOthers<CR>")
 vim.keymap.set("n", "<leader>br", "<cmd>BufferLineCloseRight<CR>")
 vim.keymap.set("n", "<leader>bl", "<cmd>BufferLineCloseLeft<CR>")
@@ -155,9 +130,6 @@ vim.keymap.set("n", "<leader>ba", function()
   local bufs = vim.fn.getbufinfo({ buflisted = 1 })
   local real_bufs = {}
   local alpha_buf = nil
-
-  local current = vim.api.nvim_get_current_buf()
-  local cft = vim.bo[current].filetype
 
   -- collect buffers
   for _, buf in ipairs(bufs) do
@@ -182,7 +154,7 @@ vim.keymap.set("n", "<leader>ba", function()
     local buf = vim.api.nvim_win_get_buf(win)
     local ft = vim.bo[buf].filetype
 
-    if ft ~= "neo-tree" and ft ~= "spring-terminal" then
+    if ft ~= "neo-tree" then
       target_win = win
       break
     end
@@ -225,10 +197,6 @@ vim.api.nvim_create_autocmd("BufEnter", {
       local ft = vim.bo[buf].filetype
       local bt = vim.bo[buf].buftype
 
-      if bt == "terminal" or ft == "toggleterm" then
-        return
-      end
-
       -- ignore special UI buffers completely
       if bt ~= "" or ft == "neo-tree" or ft == "harpoon" or ft == "trouble" then
         return
@@ -269,18 +237,6 @@ vim.api.nvim_create_autocmd("BufEnter", {
     end, 50)
   end,
 })
-
-
--- Toggleterm
-vim.keymap.set("t", "<esc>", [[<c-\><c-n>]])
-vim.keymap.set("t", "<leader>t", [[<c-\><c-n><cmd>ToggleTerm<CR>]])
-
-
--- Spring boot
-vim.keymap.set("n", "<leader>r", _SPRING_RUN)
-vim.keymap.set("n", "<leader>rr", _SPRING_RESTART)
-vim.keymap.set("n", "<leader>rs", _SPRING_STOP)
-vim.keymap.set("n", "<leader>rt", _SPRING_TOGGLE)
 
 
 -- Copy to clipboard
