@@ -9,6 +9,9 @@ vim.opt.sidescrolloff = 8
 vim.opt.cursorline = true
 vim.opt.ignorecase = true
 vim.opt.smartcase = true
+-- Keep writes in-place on Windows so file watchers/LSP clients do not lose track
+-- of the current file after :w.
+vim.opt.backupcopy = "yes"
 
 -- Indentation
 vim.opt.shiftwidth = 2
