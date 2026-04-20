@@ -113,6 +113,67 @@ return {
     "neovim/nvim-lspconfig",
     config = function()
       local capabilities = require("cmp_nvim_lsp").default_capabilities()
+      local fs = vim.fs
+      local uv = vim.uv
+      local fn = vim.fn
+
+      local function resolve_ngserver_path(cmd_path)
+        if not cmd_path or cmd_path == "" or not cmd_path:lower():match("ngserver%.cmd$") then
+          return cmd_path
+        end
+
+        local ok, content = pcall(fn.readblob, cmd_path)
+        if not ok or not content then
+          return cmd_path
+        end
+
+        local target = content:match('%s%"%%dp0%%\\([^\r\n]-ngserver[^\r\n]-)%"')
+        if not target then
+          return cmd_path
+        end
+
+        local full = fs.normalize(fs.joinpath(fs.dirname(cmd_path), target))
+        return resolve_ngserver_path(full)
+      end
+
+      local function collect_angular_node_modules(root_dir)
+        local results = {}
+        local seen = {}
+
+        local function add(path)
+          if path and not seen[path] and uv.fs_stat(path) then
+            seen[path] = true
+            table.insert(results, path)
+          end
+        end
+
+        add(fs.joinpath(root_dir, "node_modules"))
+
+        local ngserver_exe = fn.exepath("ngserver")
+        if ngserver_exe and ngserver_exe ~= "" then
+          local realpath = uv.fs_realpath(ngserver_exe) or ngserver_exe
+          local ngserver_path = resolve_ngserver_path(realpath)
+          add(fs.normalize(fs.joinpath(fs.dirname(ngserver_path), "../../..")))
+        end
+
+        return results
+      end
+
+      local function get_angular_core_version(root_dir)
+        local package_json = fs.joinpath(root_dir, "package.json")
+        if not uv.fs_stat(package_json) then
+          return ""
+        end
+
+        local ok, content = pcall(fn.readblob, package_json)
+        if not ok or not content then
+          return ""
+        end
+
+        local json = vim.json.decode(content) or {}
+        local version = (json.dependencies or {})["@angular/core"] or (json.devDependencies or {})["@angular/core"] or ""
+        return version:match("%d+%.%d+%.%d+") or ""
+      end
 
       ------------------------------------------------------------------
       -- Diagnostics
@@ -160,6 +221,32 @@ return {
       ------------------------------------------------------------------
       vim.lsp.config("angularls", {
         capabilities = capabilities,
+        cmd = function(dispatchers, config)
+          local root_dir = (config and config.root_dir) or fn.getcwd()
+          local node_paths = collect_angular_node_modules(root_dir)
+          local ts_probe = table.concat(node_paths, ",")
+          local ng_probe = table.concat(vim.iter(node_paths):map(function(path)
+            return fs.joinpath(path, "@angular/language-server/node_modules")
+          end):totable(), ",")
+
+          local ngserver_exe = fn.exepath("ngserver")
+          local ngserver_path = resolve_ngserver_path(uv.fs_realpath(ngserver_exe) or ngserver_exe)
+
+          local cmd = {
+            "node",
+            "--max-old-space-size=4096",
+            ngserver_path,
+            "--stdio",
+            "--tsProbeLocations",
+            ts_probe,
+            "--ngProbeLocations",
+            ng_probe,
+            "--angularCoreVersion",
+            get_angular_core_version(root_dir),
+          }
+
+          return vim.lsp.rpc.start(cmd, dispatchers)
+        end,
       })
 
       ------------------------------------------------------------------
