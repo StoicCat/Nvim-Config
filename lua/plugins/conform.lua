@@ -2,6 +2,7 @@ return {
   "stevearc/conform.nvim",
   config = function()
     local google_java_format = "C:/tools/google-java-format/google-java-format-1.17.0-all-deps.jar"
+    local conform_util = require("conform.util")
     local function find_prettier_entry(ctx)
       local prettier_files = vim.fs.find("node_modules/prettier/bin/prettier.cjs", {
         upward = true,
@@ -20,6 +21,75 @@ return {
       })
 
       return prettier_files[1]
+    end
+
+    local function find_prettier_cwd(ctx)
+      return vim.fs.root(ctx.dirname, {
+        ".prettierrc",
+        ".prettierrc.json",
+        ".prettierrc.yml",
+        ".prettierrc.yaml",
+        ".prettierrc.json5",
+        ".prettierrc.js",
+        ".prettierrc.cjs",
+        ".prettierrc.mjs",
+        ".prettierrc.toml",
+        "prettier.config.js",
+        "prettier.config.cjs",
+        "prettier.config.mjs",
+        "package.json",
+      })
+    end
+
+    local function run_prettier(self, ctx, input_lines, callback)
+      local prettier = find_prettier_entry(ctx)
+      if not prettier then
+        callback("Prettier executable not found")
+        return
+      end
+
+      local argv = {
+        "node",
+        prettier,
+        "--stdin-filepath",
+        ctx.filename,
+      }
+
+      if ctx.range then
+        local start_offset, end_offset = conform_util.get_offsets_from_range(ctx.buf, ctx.range)
+        vim.list_extend(argv, {
+          "--range-start=" .. start_offset,
+          "--range-end=" .. end_offset,
+        })
+      end
+
+      local cwd = find_prettier_cwd(ctx)
+      local buffer_text = table.concat(input_lines, "\n")
+
+      vim.system(argv, {
+        cwd = cwd,
+        stdin = buffer_text,
+        text = true,
+      }, vim.schedule_wrap(function(result)
+        if result.code ~= 0 then
+          local err = result.stderr
+          if not err or err == "" then
+            err = result.stdout
+          end
+          callback(err ~= "" and err or "Prettier failed")
+          return
+        end
+
+        local output = vim.split(result.stdout or "", "\r?\n")
+        if output[#output] == "" then
+          table.remove(output)
+        end
+        if #output == 0 then
+          output = { "" }
+        end
+
+        callback(nil, output)
+      end))
     end
 
     local web_filetypes = {
@@ -63,40 +133,22 @@ return {
             google_java_format,
             "-",
           },
+          range_args = function(self, ctx)
+            return {
+              "-jar",
+              google_java_format,
+              "--lines",
+              string.format("%d:%d", ctx.range["start"][1], ctx.range["end"][1]),
+              "-",
+            }
+          end,
           stdin = true,
         },
         prettier = {
-          command = "node",
-          args = function(self, ctx)
-            local prettier = find_prettier_entry(ctx)
-            if not prettier then
-              return { "--version" }
-            end
-
-            return {
-              prettier,
-              "--stdin-filepath",
-              "$FILENAME",
-            }
+          format = run_prettier,
+          range_args = function()
+            return {}
           end,
-          cwd = function(self, ctx)
-            return vim.fs.root(ctx.dirname, {
-              ".prettierrc",
-              ".prettierrc.json",
-              ".prettierrc.yml",
-              ".prettierrc.yaml",
-              ".prettierrc.json5",
-              ".prettierrc.js",
-              ".prettierrc.cjs",
-              ".prettierrc.mjs",
-              ".prettierrc.toml",
-              "prettier.config.js",
-              "prettier.config.cjs",
-              "prettier.config.mjs",
-              "package.json",
-            })
-          end,
-          stdin = true,
         },
       },
     })
@@ -134,6 +186,32 @@ return {
     vim.keymap.set("n", "<leader>f", function()
       format_and_fix()
     end, { desc = "Format + Fix Imports" })
+
+    vim.keymap.set("x", "<leader>f", function()
+      local start_pos = vim.fn.getpos("v")
+      local end_pos = vim.fn.getpos(".")
+      local start_row = start_pos[2]
+      local start_col = start_pos[3]
+      local end_row = end_pos[2]
+      local end_col = end_pos[3]
+
+      if start_row == end_row and end_col < start_col then
+        start_col, end_col = end_col, start_col
+      elseif end_row < start_row then
+        start_row, end_row = end_row, start_row
+        start_col, end_col = end_col, start_col
+      end
+
+      require("conform").format({
+        async = false,
+        timeout_ms = 3000,
+        lsp_fallback = false,
+        range = {
+          ["start"] = { start_row, start_col - 1 },
+          ["end"] = { end_row, end_col - 1 },
+        },
+      })
+    end, { desc = "Format Selection" })
 
     -- 📦 manual organize imports ONLY
     vim.keymap.set("n", "<leader>oi", function()
