@@ -160,13 +160,6 @@ return {
       ------------------------------------------------------------------
       vim.lsp.config("angularls", {
         capabilities = capabilities,
-        root_dir = function(bufnr, on_dir)
-          local fname = vim.api.nvim_buf_get_name(bufnr)
-          local root = vim.fs.root(fname, "angular.json")
-          if root then
-            on_dir(root)
-          end
-        end,
       })
 
       ------------------------------------------------------------------
@@ -174,7 +167,18 @@ return {
       ------------------------------------------------------------------
       vim.lsp.config("html", {
         capabilities = capabilities,
-        filetypes = { "html", "templ" },
+        filetypes = { "html" },
+        root_dir = function(bufnr, on_dir)
+          local angular_root = vim.fs.root(bufnr, { "angular.json", "nx.json" })
+          if angular_root then
+            return
+          end
+
+          local root = vim.fs.root(bufnr, { "package.json", ".git" })
+          if root then
+            on_dir(root)
+          end
+        end,
       })
 
       vim.lsp.config("cssls", {
