@@ -192,6 +192,18 @@ return {
       ------------------------------------------------------------------
       -- ENABLE (since you're using config API)
       ------------------------------------------------------------------
+      vim.keymap.set("n", "<leader>rn", function()
+        if vim.bo.filetype == "java" then
+          local ok, api = pcall(require, "plugins.jdtls")
+          if ok and api.rename then
+            api.rename()
+            return
+          end
+        end
+
+        vim.lsp.buf.rename()
+      end, { desc = "LSP Rename Symbol" })
+
       vim.lsp.enable("lua_ls", { force = true })
       vim.lsp.enable("ts_ls")
       vim.lsp.enable("angularls")

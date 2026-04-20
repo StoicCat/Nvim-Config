@@ -219,9 +219,152 @@ return {
       ensure_treesitter(bufnr)
     end
 
+    local function rename_java_symbol()
+      local bufnr = vim.api.nvim_get_current_buf()
+      if not vim.api.nvim_buf_is_valid(bufnr) or vim.bo[bufnr].filetype ~= "java" then
+        return false
+      end
+
+      local jdtls_client = vim.lsp.get_clients({ bufnr = bufnr, name = "jdtls" })[1]
+      if not jdtls_client then
+        vim.lsp.buf.rename()
+        return true
+      end
+
+      local current_word = vim.fn.expand("<cword>")
+      local old_path = nil
+
+      local params = vim.lsp.util.make_position_params(0, jdtls_client.offset_encoding)
+      local responses = vim.lsp.buf_request_sync(bufnr, "textDocument/definition", params, 1000) or {}
+      for client_id, response in pairs(responses) do
+        local client = vim.lsp.get_client_by_id(client_id)
+        if client and client.name == "jdtls" and response and response.result then
+          local result = response.result
+          if not vim.islist(result) then
+            result = { result }
+          end
+
+          for _, item in ipairs(result) do
+            local uri = item.uri or item.targetUri
+            if uri and vim.startswith(uri, "file://") then
+              local candidate = vim.uri_to_fname(uri)
+              if vim.fn.fnamemodify(candidate, ":e") == "java"
+                  and vim.fn.fnamemodify(candidate, ":t:r") == current_word then
+                old_path = candidate
+                break
+              end
+            end
+          end
+        end
+
+        if old_path then
+          break
+        end
+      end
+
+      if not old_path or old_path == "" then
+        local current_path = vim.api.nvim_buf_get_name(bufnr)
+        if current_path ~= "" and vim.fn.fnamemodify(current_path, ":t:r") == current_word then
+          old_path = current_path
+        end
+      end
+
+      if not old_path or old_path == "" then
+        vim.lsp.buf.rename()
+        return true
+      end
+
+      local old_name = vim.fn.fnamemodify(old_path, ":t:r")
+
+      vim.ui.input({
+        prompt = "New Java type name: ",
+        default = old_name,
+      }, function(input)
+        local new_name = vim.trim(input or "")
+        if new_name == "" or new_name == old_name then
+          return
+        end
+
+        local new_path = vim.fs.joinpath(vim.fs.dirname(old_path), new_name .. ".java")
+        if vim.uv.fs_stat(new_path) then
+          vim.notify("Target Java file already exists: " .. new_path, vim.log.levels.ERROR)
+          return
+        end
+
+        local declaration_buf = vim.fn.bufnr(old_path)
+        if declaration_buf ~= -1 and vim.api.nvim_buf_is_valid(declaration_buf) and vim.bo[declaration_buf].modified then
+          vim.api.nvim_buf_call(declaration_buf, function()
+            vim.cmd.write()
+          end)
+        elseif vim.bo[bufnr].modified then
+          vim.api.nvim_buf_call(bufnr, function()
+            vim.cmd.write()
+          end)
+        end
+
+        local rename_params = vim.lsp.util.make_position_params(0, jdtls_client.offset_encoding)
+        rename_params.newName = new_name
+
+        jdtls_client:request("textDocument/rename", rename_params, function(err, result)
+          if err then
+            vim.schedule(function()
+              vim.notify("Java rename failed: " .. err.message, vim.log.levels.ERROR)
+            end)
+            return
+          end
+
+          if result then
+            vim.schedule(function()
+              vim.lsp.util.apply_workspace_edit(result, jdtls_client.offset_encoding)
+            end)
+          end
+
+          vim.defer_fn(function()
+          local target_buf = declaration_buf ~= -1 and declaration_buf or vim.fn.bufnr(old_path)
+          if target_buf == -1 or not vim.api.nvim_buf_is_valid(target_buf) then
+            target_buf = nil
+          end
+
+          if target_buf and vim.bo[target_buf].modified then
+            vim.api.nvim_buf_call(target_buf, function()
+              vim.cmd.write()
+            end)
+          elseif vim.api.nvim_buf_is_valid(bufnr) and vim.bo[bufnr].modified then
+            vim.api.nvim_buf_call(bufnr, function()
+              vim.cmd.write()
+            end)
+          end
+
+          local ok_rename, rename_err = vim.uv.fs_rename(old_path, new_path)
+          if not ok_rename then
+            vim.notify("Failed to rename Java file: " .. (rename_err or "unknown error"), vim.log.levels.ERROR)
+            return
+          end
+
+          if target_buf and vim.api.nvim_buf_is_valid(target_buf) then
+            vim.api.nvim_buf_set_name(target_buf, new_path)
+            vim.api.nvim_buf_call(target_buf, function()
+              vim.cmd.edit()
+            end)
+          end
+
+          if vim.api.nvim_buf_is_valid(bufnr) and vim.api.nvim_buf_get_name(bufnr) == old_path then
+            vim.api.nvim_buf_set_name(bufnr, new_path)
+            vim.api.nvim_buf_call(bufnr, function()
+              vim.cmd.edit()
+            end)
+          end
+          end, 300)
+        end, bufnr)
+      end)
+
+      return true
+    end
+
     package.loaded["plugins.jdtls"] = {
       start = start_jdtls,
       ensure = ensure_java_buffer,
+      rename = rename_java_symbol,
     }
 
     local group = vim.api.nvim_create_augroup("SpringJavaJdtlsRuntime", { clear = true })
