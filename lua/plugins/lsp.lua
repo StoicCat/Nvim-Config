@@ -193,12 +193,19 @@ return {
       -- ENABLE (since you're using config API)
       ------------------------------------------------------------------
       vim.keymap.set("n", "<leader>rn", function()
-        if vim.bo.filetype == "java" then
+        local ft = vim.bo.filetype
+
+        if ft == "java" then
           local ok, api = pcall(require, "plugins.jdtls")
           if ok and api.rename then
             api.rename()
             return
           end
+        end
+
+        if ft == "typescript" or ft == "typescriptreact" or ft == "javascript" or ft == "javascriptreact" then
+          vim.lsp.buf.rename(nil, { name = "ts_ls" })
+          return
         end
 
         vim.lsp.buf.rename()
