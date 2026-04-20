@@ -9,7 +9,7 @@ local root_markers = {
   "settings.gradle.kts",
 }
 
-local function find_workspace_root(path)
+local function normalize_start_path(path)
   local start = path
 
   if not start or start == "" then
@@ -20,6 +20,12 @@ local function find_workspace_root(path)
   if stat and stat.type ~= "directory" then
     start = vim.fs.dirname(start)
   end
+
+  return start
+end
+
+local function find_workspace_root(path)
+  local start = normalize_start_path(path)
 
   local matches = vim.fs.find(root_markers, {
     upward = true,
@@ -33,6 +39,17 @@ local function find_workspace_root(path)
   end
 
   return vim.fs.dirname(matches[#matches])
+end
+
+local function find_plain_java_root(path)
+  local start = normalize_start_path(path)
+
+  local git_root = vim.fs.root(start, ".git")
+  if git_root then
+    return git_root
+  end
+
+  return start
 end
 
 local function is_java_project(path)
@@ -155,15 +172,22 @@ return {
 
     local function start_jdtls(bufnr)
       local root_hint = vim.fn.getcwd()
+      local allow_plain_java = false
 
       if bufnr and vim.api.nvim_buf_is_valid(bufnr) then
         local bufname = vim.api.nvim_buf_get_name(bufnr)
         if bufname ~= "" then
           root_hint = bufname
         end
+
+        allow_plain_java = vim.bo[bufnr].filetype == "java"
       end
 
       local root_dir = find_workspace_root(root_hint)
+
+      if not root_dir and allow_plain_java then
+        root_dir = find_plain_java_root(root_hint)
+      end
 
       if not root_dir then
         return
