@@ -1,10 +1,12 @@
 local root_markers = {
   "pom.xml",
+  "mvnw",
   "build.gradle",
   "build.gradle.kts",
+  "gradlew",
+  "gradlew.bat",
   "settings.gradle",
   "settings.gradle.kts",
-  ".git",
 }
 
 local function find_workspace_root(path)
